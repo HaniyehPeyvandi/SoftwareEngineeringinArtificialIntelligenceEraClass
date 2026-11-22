@@ -1,0 +1,1032 @@
+{
+  "openapi": "3.1.1",
+  "info": {
+    "title": "ChangeFlow MVP API",
+    "version": "1.0.0",
+    "description": "Planning contract only. See README.md for current-role lookup, transaction boundaries, error ordering, text normalization/counting, and visibility. Fields use camelCase; version is specification Version. All critical integration tests assert HTTP responses and actual SQLite state."
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:3000/api",
+      "description": "Local academic demo"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/auth/login": {
+      "post": {
+        "operationId": "login",
+        "summary": "Authenticate a local demo user",
+        "description": "Behavior and error ordering are defined in contracts/README.md.",
+        "responses": {
+          "200": {
+            "description": "Authenticate a local demo user",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/InvalidCredentials"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/MediaType"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          },
+          "503": {
+            "$ref": "#/components/responses/Storage"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginBody"
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/change-requests": {
+      "post": {
+        "operationId": "createChangeRequest",
+        "summary": "Create own Draft",
+        "description": "Behavior and error ordering are defined in contracts/README.md.",
+        "responses": {
+          "201": {
+            "description": "Create own Draft",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              },
+              "Location": {
+                "description": "Relative URI /api/change-requests/{id}",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeRequest"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/MediaType"
+          },
+          "422": {
+            "$ref": "#/components/responses/Validation"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          },
+          "503": {
+            "$ref": "#/components/responses/Storage"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBody"
+              }
+            }
+          }
+        },
+        "x-permissions": "Current Requester; owner derived from JWT subject",
+        "x-state-transition": "None -> Draft; Version 1"
+      }
+    },
+    "/change-requests/mine": {
+      "get": {
+        "operationId": "listOwnChangeRequests",
+        "summary": "List own requests in all statuses",
+        "description": "Behavior and error ordering are defined in contracts/README.md.",
+        "responses": {
+          "200": {
+            "description": "List own requests in all statuses",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeRequestList"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          },
+          "503": {
+            "$ref": "#/components/responses/Storage"
+          }
+        },
+        "x-permissions": "Current Requester; owner only"
+      }
+    },
+    "/change-requests/pending-review": {
+      "get": {
+        "operationId": "listPendingReview",
+        "summary": "List other users' PendingReview requests",
+        "description": "Behavior and error ordering are defined in contracts/README.md.",
+        "responses": {
+          "200": {
+            "description": "List other users' PendingReview requests",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeRequestList"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          },
+          "503": {
+            "$ref": "#/components/responses/Storage"
+          }
+        },
+        "x-permissions": "Current Reviewer; exclude own requests"
+      }
+    },
+    "/change-requests/{id}": {
+      "get": {
+        "operationId": "getChangeRequest",
+        "summary": "Retrieve an authorized request",
+        "description": "Behavior and error ordering are defined in contracts/README.md.",
+        "responses": {
+          "200": {
+            "description": "Retrieve an authorized request",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeRequest"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          },
+          "503": {
+            "$ref": "#/components/responses/Storage"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "x-permissions": "Owner + Requester, OR non-owner + Reviewer + PendingReview"
+      },
+      "put": {
+        "operationId": "editChangeRequest",
+        "summary": "Replace own editable proposal content",
+        "description": "Behavior and error ordering are defined in contracts/README.md.",
+        "responses": {
+          "200": {
+            "description": "Replace own editable proposal content",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeRequest"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/MediaType"
+          },
+          "422": {
+            "$ref": "#/components/responses/Validation"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          },
+          "503": {
+            "$ref": "#/components/responses/Storage"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditBody"
+              }
+            }
+          }
+        },
+        "x-permissions": "Owner + current Requester",
+        "x-state-transition": "Draft -> Draft OR ChangesRequested -> ChangesRequested; Version +1; retain comment"
+      }
+    },
+    "/change-requests/{id}/submit": {
+      "post": {
+        "operationId": "submitChangeRequest",
+        "summary": "Submit or resubmit own request",
+        "description": "Behavior and error ordering are defined in contracts/README.md.",
+        "responses": {
+          "200": {
+            "description": "Submit or resubmit own request",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeRequest"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/MediaType"
+          },
+          "422": {
+            "$ref": "#/components/responses/Validation"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          },
+          "503": {
+            "$ref": "#/components/responses/Storage"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VersionBody"
+              }
+            }
+          }
+        },
+        "x-permissions": "Owner + current Requester",
+        "x-state-transition": "Draft OR ChangesRequested -> PendingReview; Version +1; retain comment"
+      }
+    },
+    "/change-requests/{id}/approve": {
+      "post": {
+        "operationId": "approveChangeRequest",
+        "summary": "Approve another user's pending request",
+        "description": "Behavior and error ordering are defined in contracts/README.md.",
+        "responses": {
+          "200": {
+            "description": "Approve another user's pending request",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeRequest"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/MediaType"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          },
+          "503": {
+            "$ref": "#/components/responses/Storage"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VersionBody"
+              }
+            }
+          }
+        },
+        "x-permissions": "Current Reviewer; MUST NOT be requester even with both roles",
+        "x-state-transition": "PendingReview -> Approved; Version +1; retain proposal and comment"
+      }
+    },
+    "/change-requests/{id}/request-changes": {
+      "post": {
+        "operationId": "requestChanges",
+        "summary": "Return another user's request with required comment",
+        "description": "Behavior and error ordering are defined in contracts/README.md.",
+        "responses": {
+          "200": {
+            "description": "Return another user's request with required comment",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeRequest"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthenticated"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "413": {
+            "$ref": "#/components/responses/TooLarge"
+          },
+          "415": {
+            "$ref": "#/components/responses/MediaType"
+          },
+          "422": {
+            "$ref": "#/components/responses/Validation"
+          },
+          "500": {
+            "$ref": "#/components/responses/Internal"
+          },
+          "503": {
+            "$ref": "#/components/responses/Storage"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReturnBody"
+              }
+            }
+          }
+        },
+        "x-permissions": "Current Reviewer; MUST NOT be requester even with both roles",
+        "x-state-transition": "PendingReview -> ChangesRequested; Version +1; replace latest comment"
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "HS256 only; iss changeflow; aud changeflow-api; UUID sub; iat and exp required, lifetime 900s. Current roles and active user are reloaded in SQLite on every operation; token roles never authorize."
+      }
+    },
+    "schemas": {
+      "CreateBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "title",
+          "description",
+          "reason"
+        ],
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Required non-whitespace valid Unicode text; maximum 200 code points after surrounding ECMAScript trim. Original text is preserved.",
+            "x-trimmed-min-codepoints": 1,
+            "x-trimmed-max-codepoints": 200,
+            "x-counting-unit": "Unicode code points"
+          },
+          "description": {
+            "type": "string",
+            "description": "Required non-whitespace valid Unicode text; maximum 5000 code points after surrounding ECMAScript trim. Original text is preserved.",
+            "x-trimmed-min-codepoints": 1,
+            "x-trimmed-max-codepoints": 5000,
+            "x-counting-unit": "Unicode code points"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Required non-whitespace valid Unicode text; maximum 2000 code points after surrounding ECMAScript trim. Original text is preserved.",
+            "x-trimmed-min-codepoints": 1,
+            "x-trimmed-max-codepoints": 2000,
+            "x-counting-unit": "Unicode code points"
+          }
+        }
+      },
+      "EditBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "title",
+          "description",
+          "reason",
+          "version"
+        ],
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Required non-whitespace valid Unicode text; maximum 200 code points after surrounding ECMAScript trim. Original text is preserved.",
+            "x-trimmed-min-codepoints": 1,
+            "x-trimmed-max-codepoints": 200,
+            "x-counting-unit": "Unicode code points"
+          },
+          "description": {
+            "type": "string",
+            "description": "Required non-whitespace valid Unicode text; maximum 5000 code points after surrounding ECMAScript trim. Original text is preserved.",
+            "x-trimmed-min-codepoints": 1,
+            "x-trimmed-max-codepoints": 5000,
+            "x-counting-unit": "Unicode code points"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Required non-whitespace valid Unicode text; maximum 2000 code points after surrounding ECMAScript trim. Original text is preserved.",
+            "x-trimmed-min-codepoints": 1,
+            "x-trimmed-max-codepoints": 2000,
+            "x-counting-unit": "Unicode code points"
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991,
+            "description": "Expected current integer Version. Advances once per accepted edit or transition."
+          }
+        }
+      },
+      "VersionBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "version"
+        ],
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991,
+            "description": "Expected current integer Version. Advances once per accepted edit or transition."
+          }
+        }
+      },
+      "ReturnBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "version",
+          "comment"
+        ],
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991,
+            "description": "Expected current integer Version. Advances once per accepted edit or transition."
+          },
+          "comment": {
+            "type": "string",
+            "description": "Required non-whitespace valid Unicode text; maximum 2000 code points after surrounding ECMAScript trim. Original text is preserved.",
+            "x-trimmed-min-codepoints": 1,
+            "x-trimmed-max-codepoints": 2000,
+            "x-counting-unit": "Unicode code points"
+          }
+        }
+      },
+      "LoginBody": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "username",
+          "password"
+        ],
+        "properties": {
+          "username": {
+            "type": "string",
+            "description": "Exact local demo username."
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "writeOnly": true,
+            "description": "Raw password; do not trim or normalize."
+          }
+        }
+      },
+      "TokenResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "accessToken",
+          "tokenType",
+          "expiresIn"
+        ],
+        "properties": {
+          "accessToken": {
+            "type": "string"
+          },
+          "tokenType": {
+            "type": "string",
+            "const": "Bearer"
+          },
+          "expiresIn": {
+            "type": "integer",
+            "const": 900
+          }
+        }
+      },
+      "ChangeRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "title",
+          "description",
+          "reason",
+          "requesterId",
+          "status",
+          "version",
+          "reviewerComment"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string",
+            "description": "Required non-whitespace valid Unicode text; maximum 200 code points after surrounding ECMAScript trim. Original text is preserved.",
+            "x-trimmed-min-codepoints": 1,
+            "x-trimmed-max-codepoints": 200,
+            "x-counting-unit": "Unicode code points"
+          },
+          "description": {
+            "type": "string",
+            "description": "Required non-whitespace valid Unicode text; maximum 5000 code points after surrounding ECMAScript trim. Original text is preserved.",
+            "x-trimmed-min-codepoints": 1,
+            "x-trimmed-max-codepoints": 5000,
+            "x-counting-unit": "Unicode code points"
+          },
+          "reason": {
+            "type": "string",
+            "description": "Required non-whitespace valid Unicode text; maximum 2000 code points after surrounding ECMAScript trim. Original text is preserved.",
+            "x-trimmed-min-codepoints": 1,
+            "x-trimmed-max-codepoints": 2000,
+            "x-counting-unit": "Unicode code points"
+          },
+          "requesterId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Draft",
+              "PendingReview",
+              "ChangesRequested",
+              "Approved"
+            ]
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991,
+            "description": "Expected current integer Version. Advances once per accepted edit or transition."
+          },
+          "reviewerComment": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Latest return comment, or null before first return. Required on RequestChanges; retained on edit, Submit and Approve; replaced by next successful RequestChanges.",
+            "x-trimmed-min-codepoints": 1,
+            "x-trimmed-max-codepoints": 2000,
+            "x-counting-unit": "Unicode code points"
+          }
+        }
+      },
+      "ChangeRequestList": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "items"
+        ],
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChangeRequest"
+            },
+            "description": "Authorized items, sorted by ID ascending; empty array when none."
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "code",
+              "message"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "INVALID_REQUEST",
+                  "UNAUTHENTICATED",
+                  "INVALID_CREDENTIALS",
+                  "FORBIDDEN",
+                  "NOT_FOUND",
+                  "VERSION_CONFLICT",
+                  "INVALID_STATUS",
+                  "PAYLOAD_TOO_LARGE",
+                  "UNSUPPORTED_MEDIA_TYPE",
+                  "VALIDATION_FAILED",
+                  "STORAGE_BUSY",
+                  "STORAGE_UNAVAILABLE",
+                  "INTERNAL_ERROR"
+                ]
+              },
+              "message": {
+                "type": "string"
+              },
+              "fields": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "field",
+                    "reason"
+                  ],
+                  "properties": {
+                    "field": {
+                      "type": "string"
+                    },
+                    "reason": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "400 INVALID_REQUEST: invalid JSON/Unicode, shape, IDs or Version.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "Unauthenticated": {
+        "description": "401 UNAUTHENTICATED: invalid token or missing/inactive current subject.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        },
+        "headers": {
+          "WWW-Authenticate": {
+            "schema": {
+              "type": "string",
+              "const": "Bearer"
+            }
+          }
+        }
+      },
+      "InvalidCredentials": {
+        "description": "401 INVALID_CREDENTIALS: generic failed login.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "403 FORBIDDEN: current role, ownership, independence or read visibility denied.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "404 NOT_FOUND: request ID does not exist.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "409 VERSION_CONFLICT for stale Version; INVALID_STATUS for disallowed state with current Version. No protected row data.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "TooLarge": {
+        "description": "413 PAYLOAD_TOO_LARGE: envelope exceeds 128 KiB.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "MediaType": {
+        "description": "415 UNSUPPORTED_MEDIA_TYPE: body must be application/json.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "Validation": {
+        "description": "422 VALIDATION_FAILED: blank or overlength text after trimming.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "Storage": {
+        "description": "503 STORAGE_BUSY or STORAGE_UNAVAILABLE; operation rolled back, not accepted.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      },
+      "Internal": {
+        "description": "500 INTERNAL_ERROR; no protected or internal details.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,33 @@
+# Installed dependencies and generated output
+node_modules/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+*.log
+.npm-cache/
+
+# Local configuration and generated credentials
+.env*
+!.env.example
+secrets/
+credentials/
+*.key
+*.pem
+
+# Local demo/test databases and SQLite sidecars
+data/
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
+*.db
+*.db-*
+
+# Editor and operating system artifacts
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
